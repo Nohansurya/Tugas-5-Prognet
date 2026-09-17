@@ -1,4 +1,5 @@
 # Panduan Lengkap: Backend Laravel REST API + Frontend React (Tailwind CSS)
+
 ### Studi Kasus: Aplikasi Kontak (Kontak App) — Pertemuan 5, Pemrograman Internet
 
 Panduan ini disusun berdasarkan isi slide **Pertemuan 5** dan **Slide Suplemen Pertemuan 5**. Backend dan frontend dibuat sebagai **dua project terpisah** (bukan Laravel Blade), berkomunikasi lewat REST API + Bearer Token (Laravel Sanctum).
@@ -24,6 +25,7 @@ React (Vite + Tailwind) ──fetch()──▶ Laravel REST API (routes/api.php)
 - Relasi database: **1 Kontak punya Banyak Nomor Telepon** (`hasMany` / `belongsTo`).
 
 ### Prasyarat (jika pakai Ubuntu VM, sesuai slide suplemen)
+
 ```bash
 # Update & Git
 sudo apt update
@@ -81,6 +83,7 @@ DB_DATABASE=database/db_kontak.sqlite
 ```bash
 php artisan install:api
 ```
+
 Perintah ini otomatis mempublikasikan `routes/api.php`, menginstall package **Sanctum**, dan menyiapkan migration `personal_access_tokens`.
 
 **⚠️ WAJIB (kritis):** tambahkan trait `HasApiTokens` di `app/Models/User.php`:
@@ -94,6 +97,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable; // 👈 Pasang Trait
 }
 ```
+
 > ⚠️ Tanpa trait `HasApiTokens`, method `createToken()` akan memicu `BadMethodCallException`.
 
 ## Langkah 4: Migration Tabel `kontak` & `kontak_phones`
@@ -140,6 +144,7 @@ public function up(): void
 ```bash
 php artisan migrate
 ```
+
 > 💡 Jika muncul error **"no such table: kontak"**, jalankan ulang `php artisan migrate` (atau `php artisan migrate:fresh` untuk reset total).
 
 ## Langkah 6: Model Eloquent & Relasi 1 to Many
@@ -247,7 +252,7 @@ class AuthController extends Controller
 php artisan make:controller Api/ContactController
 ```
 
-Perintah di atas hanya membuat file kosong berisi *class* kosong. **Buka file `app/Http/Controllers/Api/ContactController.php`, lalu ganti (timpa) seluruh isinya** dengan kode lengkap berikut — bukan ditambahkan di atas kode bawaan:
+Perintah di atas hanya membuat file kosong berisi _class_ kosong. **Buka file `app/Http/Controllers/Api/ContactController.php`, lalu ganti (timpa) seluruh isinya** dengan kode lengkap berikut — bukan ditambahkan di atas kode bawaan:
 
 ```php
 <?php
@@ -348,9 +353,11 @@ php artisan serve --host=0.0.0.0
 ```
 
 Base URL REST API sekarang:
+
 ```
 http://127.0.0.1:8000/api
 ```
+
 > 💡 Gunakan `--host=0.0.0.0` agar server bisa diakses dari laptop host jika dijalankan di Virtual Machine.
 
 ## Langkah 12 (Opsional): API Tester Tanpa Postman
@@ -359,41 +366,137 @@ Buat file `public/api-tester.html` di project Laravel untuk menguji API langsung
 
 ```html
 <!-- public/api-tester.html -->
-<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>API Tester</title>
-<style>
-  body { font-family: sans-serif; background: #0f172a; color: #e2e8f0; padding: 15px; max-width: 800px; margin: 0 auto; }
-  .card { background: #1e293b; border: 1px solid #334155; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
-  input, button { padding: 6px 10px; margin: 3px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 0.75rem; }
-  button { background: #0284c7; color: white; font-weight: bold; cursor: pointer; border: none; }
-  pre { background: #090d16; padding: 10px; border-radius: 6px; color: #4ade80; overflow-x: auto; font-size: 0.75rem; }
-</style></head><body>
-  <h3 style="color:#38bdf8;">🚀 Laravel REST API Tester</h3>
-  <div class="card">
-    <input type="text" id="token" placeholder="Bearer Token (Otomatis terisi saat Login)" style="width: 70%;">
-    <input type="text" id="reg_name" value="Budi Santoso"> <input type="email" id="email" value="budi@gmail.com"> <input type="password" id="password" value="password123"><br>
-    <button onclick="sendReq('/register','POST',{name:document.getElementById('reg_name').value,email:document.getElementById('email').value,password:document.getElementById('password').value})">Register</button>
-    <button onclick="sendReq('/login','POST',{email:document.getElementById('email').value,password:document.getElementById('password').value},true)">Login</button>
-  </div>
-  <div class="card">
-    <input type="text" id="kt_nama" value="Ayu Pertiwi"> <input type="text" id="kt_alamat" value="Jl. Udayana"> <input type="date" id="kt_tgl" value="2001-05-15"> <input type="text" id="kt_phone" value="081234567890"><br>
-    <button onclick="sendReq('/kontak','GET',null,false,true)">Get Kontak</button>
-    <button onclick="sendReq('/kontak','POST',{nama:document.getElementById('kt_nama').value,alamat:document.getElementById('kt_alamat').value,tanggal_lahir:document.getElementById('kt_tgl').value,phones:[{jenis:'HP',nomor_telepon:document.getElementById('kt_phone').value}]},false,true)">Tambah Kontak</button>
-  </div>
-  <div class="card">
-    <div style="color:#f59e0b;font-weight:bold;margin-bottom:4px;">📝 Raw JSON Input</div>
-    <textarea id="raw_json" rows="6" style="width:100%;font-family:monospace;background:#090d16;color:#fff;border:1px solid #475569;border-radius:4px;padding:6px;font-size:0.7rem;" placeholder='{"nama":"Ayu Pertiwi","alamat":"Jl. Udayana","tanggal_lahir":"2001-05-15","phones":[{"jenis":"HP","nomor_telepon":"081234567890"}]}'></textarea><br>
-    <button onclick="sendReq('/kontak','POST',JSON.parse(document.getElementById('raw_json').value),false,true)">Send Raw JSON</button>
-  </div>
-  <div class="card"><pre id="out">Output Respon JSON...</pre></div>
-  <script>
-    async function sendReq(ep, m, body=null, isLogin=false, isAuth=false) {
-      const h = {'Accept':'application/json','Content-Type':'application/json'};
-      if(isAuth && document.getElementById('token').value) h['Authorization'] = 'Bearer ' + document.getElementById('token').value;
-      const r = await fetch('/api'+ep, {method:m, headers:h, body:body?JSON.stringify(body):null});
-      const d = await r.json(); document.getElementById('out').textContent = JSON.stringify(d, null, 2);
-      if(isLogin && d.token) document.getElementById('token').value = d.token;
-    }
-  </script></body></html>
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <title>API Tester</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 15px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+      }
+      input,
+      button {
+        padding: 6px 10px;
+        margin: 3px;
+        border-radius: 4px;
+        border: 1px solid #475569;
+        background: #0f172a;
+        color: #fff;
+        font-size: 0.75rem;
+      }
+      button {
+        background: #0284c7;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+      }
+      pre {
+        background: #090d16;
+        padding: 10px;
+        border-radius: 6px;
+        color: #4ade80;
+        overflow-x: auto;
+        font-size: 0.75rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h3 style="color:#38bdf8;">🚀 Laravel REST API Tester</h3>
+    <div class="card">
+      <input
+        type="text"
+        id="token"
+        placeholder="Bearer Token (Otomatis terisi saat Login)"
+        style="width: 70%;"
+      />
+      <input type="text" id="reg_name" value="Budi Santoso" />
+      <input type="email" id="email" value="budi@gmail.com" />
+      <input type="password" id="password" value="password123" /><br />
+      <button
+        onclick="sendReq('/register','POST',{name:document.getElementById('reg_name').value,email:document.getElementById('email').value,password:document.getElementById('password').value})"
+      >
+        Register
+      </button>
+      <button
+        onclick="sendReq('/login','POST',{email:document.getElementById('email').value,password:document.getElementById('password').value},true)"
+      >
+        Login
+      </button>
+    </div>
+    <div class="card">
+      <input type="text" id="kt_nama" value="Ayu Pertiwi" />
+      <input type="text" id="kt_alamat" value="Jl. Udayana" />
+      <input type="date" id="kt_tgl" value="2001-05-15" />
+      <input type="text" id="kt_phone" value="081234567890" /><br />
+      <button onclick="sendReq('/kontak','GET',null,false,true)">
+        Get Kontak
+      </button>
+      <button
+        onclick="sendReq('/kontak','POST',{nama:document.getElementById('kt_nama').value,alamat:document.getElementById('kt_alamat').value,tanggal_lahir:document.getElementById('kt_tgl').value,phones:[{jenis:'HP',nomor_telepon:document.getElementById('kt_phone').value}]},false,true)"
+      >
+        Tambah Kontak
+      </button>
+    </div>
+    <div class="card">
+      <div style="color:#f59e0b;font-weight:bold;margin-bottom:4px;">
+        📝 Raw JSON Input
+      </div>
+      <textarea
+        id="raw_json"
+        rows="6"
+        style="width:100%;font-family:monospace;background:#090d16;color:#fff;border:1px solid #475569;border-radius:4px;padding:6px;font-size:0.7rem;"
+        placeholder='{"nama":"Ayu Pertiwi","alamat":"Jl. Udayana","tanggal_lahir":"2001-05-15","phones":[{"jenis":"HP","nomor_telepon":"081234567890"}]}'
+      ></textarea
+      ><br />
+      <button
+        onclick="sendReq('/kontak','POST',JSON.parse(document.getElementById('raw_json').value),false,true)"
+      >
+        Send Raw JSON
+      </button>
+    </div>
+    <div class="card"><pre id="out">Output Respon JSON...</pre></div>
+    <script>
+      async function sendReq(
+        ep,
+        m,
+        body = null,
+        isLogin = false,
+        isAuth = false,
+      ) {
+        const h = {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        };
+        if (isAuth && document.getElementById("token").value)
+          h["Authorization"] =
+            "Bearer " + document.getElementById("token").value;
+        const r = await fetch("/api" + ep, {
+          method: m,
+          headers: h,
+          body: body ? JSON.stringify(body) : null,
+        });
+        const d = await r.json();
+        document.getElementById("out").textContent = JSON.stringify(d, null, 2);
+        if (isLogin && d.token)
+          document.getElementById("token").value = d.token;
+      }
+    </script>
+  </body>
+</html>
 ```
 
 Akses lewat browser: `http://127.0.0.1:8000/api-tester.html`
@@ -401,23 +504,26 @@ Akses lewat browser: `http://127.0.0.1:8000/api-tester.html`
 ## Langkah 13: Pengujian API dengan Postman (Rinci Langkah demi Langkah)
 
 ### 13.1 Install & Buka Postman
+
 1. Download di [postman.com/downloads](https://www.postman.com/downloads/), install seperti aplikasi biasa.
 2. Buka Postman. Boleh **Skip** kalau diminta login/sign up (tetap bisa dipakai tanpa akun untuk kebutuhan lokal).
 
 ### 13.2 Buat Collection & Environment (biar rapi & token otomatis tersimpan)
 
 **a) Buat Collection**
+
 1. Klik **Collections** di sidebar kiri → **+** → beri nama `Kontak API`.
 
 **b) Buat Environment (untuk menyimpan `base_url` & `token` biar tidak ketik ulang manual)**
+
 1. Klik ikon mata / **Environments** di sidebar kiri → **+**.
 2. Beri nama `Kontak API - Local`.
 3. Tambahkan 2 variable:
 
-   | Variable | Initial Value | Current Value |
-   |---|---|---|
+   | Variable   | Initial Value               | Current Value               |
+   | ---------- | --------------------------- | --------------------------- |
    | `base_url` | `http://127.0.0.1:8000/api` | `http://127.0.0.1:8000/api` |
-   | `token` | *(kosongkan)* | *(kosongkan)* |
+   | `token`    | _(kosongkan)_               | _(kosongkan)_               |
 
 4. Klik **Save**, lalu di pojok kanan atas Postman, pilih environment `Kontak API - Local` dari dropdown (defaultnya "No Environment").
 
@@ -434,7 +540,11 @@ Akses lewat browser: `http://127.0.0.1:8000/api-tester.html`
    | `Content-Type` | `application/json` |
 4. Klik tab **Body** → pilih **raw** → di dropdown kanan pilih **JSON** → isi:
    ```json
-   { "name": "Budi Santoso", "email": "budi@gmail.com", "password": "password123" }
+   {
+     "name": "Budi Santoso",
+     "email": "budi@gmail.com",
+     "password": "password123"
+   }
    ```
 5. Klik **Send**. Response yang diharapkan (status **201 Created**):
    ```json
@@ -497,17 +607,18 @@ Akses lewat browser: `http://127.0.0.1:8000/api-tester.html`
 
 Ulangi pola yang sama (method, headers, Bearer `{{token}}` untuk yang butuh login) untuk endpoint lain:
 
-| Nama Request | Method | URL | Body |
-|---|---|---|---|
-| Get All Kontak | GET | `{{base_url}}/kontak` | — |
-| Get Detail Kontak | GET | `{{base_url}}/kontak/1` | — |
-| Update Kontak | PUT | `{{base_url}}/kontak/1` | `{ "nama": "...", "alamat": "...", "tanggal_lahir": "..." }` |
-| Delete Kontak | DELETE | `{{base_url}}/kontak/1` | — |
-| Logout | POST | `{{base_url}}/logout` | — |
+| Nama Request      | Method | URL                     | Body                                                         |
+| ----------------- | ------ | ----------------------- | ------------------------------------------------------------ |
+| Get All Kontak    | GET    | `{{base_url}}/kontak`   | —                                                            |
+| Get Detail Kontak | GET    | `{{base_url}}/kontak/1` | —                                                            |
+| Update Kontak     | PUT    | `{{base_url}}/kontak/1` | `{ "nama": "...", "alamat": "...", "tanggal_lahir": "..." }` |
+| Delete Kontak     | DELETE | `{{base_url}}/kontak/1` | —                                                            |
+| Logout            | POST   | `{{base_url}}/logout`   | —                                                            |
 
 > 💡 Untuk request **GET/DELETE** tanpa body, tab **Body** cukup dibiarkan **none**.
 
 ### 13.7 Tips Praktis
+
 - Simpan tiap request dengan **Ctrl+S** (Windows) / **Cmd+S** (Mac) setelah dibuat, supaya tersimpan permanen di collection.
 - Kalau ingin export & share ke teman/dosen: klik titik tiga di samping nama collection → **Export** → pilih format **Collection v2.1** → simpan sebagai file `.json`.
 - Ganti nilai `base_url` di environment jika backend dijalankan di IP/port lain (misal saat backend ada di VM Ubuntu, isi dengan `http://<IP_VM>:8000/api`).
@@ -535,25 +646,28 @@ npm install tailwindcss @tailwindcss/vite
 ```
 
 Edit `vite.config.js`:
+
 ```js
 // vite.config.js
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-})
+});
 ```
 
 Edit `src/index.css` (hapus isi lama, ganti dengan):
+
 ```css
 @import "tailwindcss";
 ```
 
 Pastikan `src/main.jsx` mengimpor CSS tersebut:
+
 ```js
-import './index.css'
+import "./index.css";
 ```
 
 ## Langkah 3: Struktur Folder
@@ -574,27 +688,27 @@ src/
 
 ```js
 // src/api.js
-const BASE_URL = 'http://127.0.0.1:8000/api'; // ganti sesuai IP/host backend
+const BASE_URL = "http://127.0.0.1:8000/api"; // ganti sesuai IP/host backend
 
 function getToken() {
-  return localStorage.getItem('token');
+  return localStorage.getItem("token");
 }
 
 export async function apiFetch(endpoint, options = {}) {
   const headers = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
+    "Content-Type": "application/json",
+    Accept: "application/json",
     ...options.headers,
   };
 
   const token = getToken();
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.message || 'Terjadi kesalahan pada server');
+    throw new Error(data.message || "Terjadi kesalahan pada server");
   }
   return data;
 }
@@ -604,23 +718,23 @@ export async function apiFetch(endpoint, options = {}) {
 
 ```jsx
 // src/components/LoginForm.jsx
-import { useState } from 'react';
-import { apiFetch } from '../api';
+import { useState } from "react";
+import { apiFetch } from "../api";
 
 export default function LoginForm({ onLoginSuccess }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
+    setError("");
     try {
-      const data = await apiFetch('/login', {
-        method: 'POST',
+      const data = await apiFetch("/login", {
+        method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      localStorage.setItem('token', data.token);
+      localStorage.setItem("token", data.token);
       onLoginSuccess();
     } catch (err) {
       setError(err.message);
@@ -628,20 +742,30 @@ export default function LoginForm({ onLoginSuccess }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-sm mx-auto bg-slate-800 p-6 rounded-xl shadow-lg space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-sm mx-auto bg-slate-800 p-6 rounded-xl shadow-lg space-y-4"
+    >
       <h2 className="text-xl font-bold text-white">Login</h2>
       {error && <p className="text-red-400 text-sm">{error}</p>}
       <input
-        type="email" placeholder="Email" value={email}
+        type="email"
+        placeholder="Email"
+        value={email}
         onChange={(e) => setEmail(e.target.value)}
         className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600 focus:outline-none focus:border-sky-400"
       />
       <input
-        type="password" placeholder="Password" value={password}
+        type="password"
+        placeholder="Password"
+        value={password}
         onChange={(e) => setPassword(e.target.value)}
         className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600 focus:outline-none focus:border-sky-400"
       />
-      <button type="submit" className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 rounded transition">
+      <button
+        type="submit"
+        className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 rounded transition"
+      >
         Masuk
       </button>
     </form>
@@ -653,12 +777,12 @@ export default function LoginForm({ onLoginSuccess }) {
 
 ```jsx
 // src/components/RegisterForm.jsx
-import { useState } from 'react';
-import { apiFetch } from '../api';
+import { useState } from "react";
+import { apiFetch } from "../api";
 
 export default function RegisterForm({ onRegisterSuccess }) {
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
-  const [error, setError] = useState('');
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [error, setError] = useState("");
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -666,13 +790,13 @@ export default function RegisterForm({ onRegisterSuccess }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
+    setError("");
     try {
-      const data = await apiFetch('/register', {
-        method: 'POST',
+      const data = await apiFetch("/register", {
+        method: "POST",
         body: JSON.stringify(form),
       });
-      localStorage.setItem('token', data.token);
+      localStorage.setItem("token", data.token);
       onRegisterSuccess();
     } catch (err) {
       setError(err.message);
@@ -680,16 +804,39 @@ export default function RegisterForm({ onRegisterSuccess }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-sm mx-auto bg-slate-800 p-6 rounded-xl shadow-lg space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-sm mx-auto bg-slate-800 p-6 rounded-xl shadow-lg space-y-4"
+    >
       <h2 className="text-xl font-bold text-white">Daftar Akun</h2>
       {error && <p className="text-red-400 text-sm">{error}</p>}
-      <input name="name" placeholder="Nama" value={form.name} onChange={handleChange}
-        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600 focus:outline-none focus:border-sky-400" />
-      <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange}
-        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600 focus:outline-none focus:border-sky-400" />
-      <input name="password" type="password" placeholder="Password" value={form.password} onChange={handleChange}
-        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600 focus:outline-none focus:border-sky-400" />
-      <button type="submit" className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 rounded transition">
+      <input
+        name="name"
+        placeholder="Nama"
+        value={form.name}
+        onChange={handleChange}
+        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600 focus:outline-none focus:border-sky-400"
+      />
+      <input
+        name="email"
+        type="email"
+        placeholder="Email"
+        value={form.email}
+        onChange={handleChange}
+        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600 focus:outline-none focus:border-sky-400"
+      />
+      <input
+        name="password"
+        type="password"
+        placeholder="Password"
+        value={form.password}
+        onChange={handleChange}
+        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600 focus:outline-none focus:border-sky-400"
+      />
+      <button
+        type="submit"
+        className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 rounded transition"
+      >
         Daftar
       </button>
     </form>
@@ -703,8 +850,8 @@ Sesuai slide "Integrasi Frontend React: Fetch API & useEffect", di-styling denga
 
 ```jsx
 // src/components/ContactList.jsx
-import { useState, useEffect } from 'react';
-import { apiFetch } from '../api';
+import { useState, useEffect } from "react";
+import { apiFetch } from "../api";
 
 export default function ContactList({ refreshKey }) {
   const [contacts, setContacts] = useState([]);
@@ -712,24 +859,30 @@ export default function ContactList({ refreshKey }) {
 
   useEffect(() => {
     setLoading(true);
-    apiFetch('/kontak')
+    apiFetch("/kontak")
       .then((data) => {
         setContacts(data);
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Gagal memuat kontak:', err);
+        console.error("Gagal memuat kontak:", err);
         setLoading(false);
       });
   }, [refreshKey]); // reload saat ada kontak baru ditambahkan
 
-  if (loading) return <p className="text-slate-400 text-center">Memuat data kontak...</p>;
+  if (loading)
+    return <p className="text-slate-400 text-center">Memuat data kontak...</p>;
 
   return (
     <div className="max-w-2xl mx-auto space-y-3">
-      <h3 className="text-lg font-bold text-white">Daftar Kontak ({contacts.length})</h3>
+      <h3 className="text-lg font-bold text-white">
+        Daftar Kontak ({contacts.length})
+      </h3>
       {contacts.map((c) => (
-        <div key={c.id} className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div
+          key={c.id}
+          className="bg-slate-800 border border-slate-700 rounded-lg p-4"
+        >
           <p className="text-white font-semibold">{c.nama}</p>
           <p className="text-slate-400 text-sm">{c.alamat}</p>
           <ul className="mt-2 space-y-1">
@@ -747,7 +900,8 @@ export default function ContactList({ refreshKey }) {
 ```
 
 > **Catatan mekanisme (dari slide):**
-> - `useEffect` dengan dependency `[]`/`[refreshKey]` bertindak sebagai *side-effect trigger* yang menjalankan `fetch()` saat komponen pertama kali di-*mount* / saat data berubah.
+>
+> - `useEffect` dengan dependency `[]`/`[refreshKey]` bertindak sebagai _side-effect trigger_ yang menjalankan `fetch()` saat komponen pertama kali di-_mount_ / saat data berubah.
 > - Header `Authorization: Bearer <token>` wajib disertakan agar request lolos middleware `auth:sanctum`.
 > - Field nested `phones` (hasil `Contact::with('phones')`) langsung dirender dengan `c.phones.map(...)`.
 > - State `loading` memberi indikator visual sebelum data selesai diterima dari server.
@@ -756,13 +910,13 @@ export default function ContactList({ refreshKey }) {
 
 ```jsx
 // src/components/ContactForm.jsx
-import { useState } from 'react';
-import { apiFetch } from '../api';
+import { useState } from "react";
+import { apiFetch } from "../api";
 
 export default function ContactForm({ onAdded }) {
-  const [form, setForm] = useState({ nama: '', alamat: '', tanggal_lahir: '' });
-  const [phone, setPhone] = useState({ jenis: 'HP', nomor_telepon: '' });
-  const [error, setError] = useState('');
+  const [form, setForm] = useState({ nama: "", alamat: "", tanggal_lahir: "" });
+  const [phone, setPhone] = useState({ jenis: "HP", nomor_telepon: "" });
+  const [error, setError] = useState("");
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -770,14 +924,14 @@ export default function ContactForm({ onAdded }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
+    setError("");
     try {
-      await apiFetch('/kontak', {
-        method: 'POST',
+      await apiFetch("/kontak", {
+        method: "POST",
         body: JSON.stringify({ ...form, phones: [phone] }),
       });
-      setForm({ nama: '', alamat: '', tanggal_lahir: '' });
-      setPhone({ jenis: 'HP', nomor_telepon: '' });
+      setForm({ nama: "", alamat: "", tanggal_lahir: "" });
+      setPhone({ jenis: "HP", nomor_telepon: "" });
       onAdded(); // trigger reload ContactList
     } catch (err) {
       setError(err.message);
@@ -785,27 +939,60 @@ export default function ContactForm({ onAdded }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto bg-slate-800 p-6 rounded-xl shadow-lg space-y-3 mb-6">
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-2xl mx-auto bg-slate-800 p-6 rounded-xl shadow-lg space-y-3 mb-6"
+    >
       <h3 className="text-lg font-bold text-white">Tambah Kontak</h3>
       {error && <p className="text-red-400 text-sm">{error}</p>}
-      <input name="nama" placeholder="Nama" value={form.nama} onChange={handleChange}
-        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600" required />
-      <input name="alamat" placeholder="Alamat" value={form.alamat} onChange={handleChange}
-        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600" required />
-      <input name="tanggal_lahir" type="date" value={form.tanggal_lahir} onChange={handleChange}
-        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600" required />
+      <input
+        name="nama"
+        placeholder="Nama"
+        value={form.nama}
+        onChange={handleChange}
+        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600"
+        required
+      />
+      <input
+        name="alamat"
+        placeholder="Alamat"
+        value={form.alamat}
+        onChange={handleChange}
+        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600"
+        required
+      />
+      <input
+        name="tanggal_lahir"
+        type="date"
+        value={form.tanggal_lahir}
+        onChange={handleChange}
+        className="w-full px-3 py-2 rounded bg-slate-900 text-white border border-slate-600"
+        required
+      />
       <div className="flex gap-2">
-        <select value={phone.jenis} onChange={(e) => setPhone({ ...phone, jenis: e.target.value })}
-          className="px-3 py-2 rounded bg-slate-900 text-white border border-slate-600">
+        <select
+          value={phone.jenis}
+          onChange={(e) => setPhone({ ...phone, jenis: e.target.value })}
+          className="px-3 py-2 rounded bg-slate-900 text-white border border-slate-600"
+        >
           <option>HP</option>
           <option>Rumah</option>
           <option>Kantor</option>
         </select>
-        <input placeholder="Nomor Telepon" value={phone.nomor_telepon}
-          onChange={(e) => setPhone({ ...phone, nomor_telepon: e.target.value })}
-          className="flex-1 px-3 py-2 rounded bg-slate-900 text-white border border-slate-600" required />
+        <input
+          placeholder="Nomor Telepon"
+          value={phone.nomor_telepon}
+          onChange={(e) =>
+            setPhone({ ...phone, nomor_telepon: e.target.value })
+          }
+          className="flex-1 px-3 py-2 rounded bg-slate-900 text-white border border-slate-600"
+          required
+        />
       </div>
-      <button type="submit" className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 rounded transition">
+      <button
+        type="submit"
+        className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 rounded transition"
+      >
         Simpan Kontak
       </button>
     </form>
@@ -817,19 +1004,19 @@ export default function ContactForm({ onAdded }) {
 
 ```jsx
 // src/App.jsx
-import { useState } from 'react';
-import LoginForm from './components/LoginForm';
-import RegisterForm from './components/RegisterForm';
-import ContactForm from './components/ContactForm';
-import ContactList from './components/ContactList';
+import { useState } from "react";
+import LoginForm from "./components/LoginForm";
+import RegisterForm from "./components/RegisterForm";
+import ContactForm from "./components/ContactForm";
+import ContactList from "./components/ContactList";
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
   const [showRegister, setShowRegister] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   function handleLogout() {
-    localStorage.removeItem('token');
+    localStorage.removeItem("token");
     setIsLoggedIn(false);
   }
 
@@ -845,7 +1032,9 @@ export default function App() {
           onClick={() => setShowRegister(!showRegister)}
           className="text-sky-400 text-sm hover:underline"
         >
-          {showRegister ? 'Sudah punya akun? Login' : 'Belum punya akun? Daftar'}
+          {showRegister
+            ? "Sudah punya akun? Login"
+            : "Belum punya akun? Daftar"}
         </button>
       </div>
     );
@@ -855,7 +1044,10 @@ export default function App() {
     <div className="min-h-screen bg-slate-900 py-10 px-4">
       <div className="flex justify-between items-center max-w-2xl mx-auto mb-6">
         <h1 className="text-2xl font-bold text-white">📇 Kontak App</h1>
-        <button onClick={handleLogout} className="text-red-400 text-sm hover:underline">
+        <button
+          onClick={handleLogout}
+          className="text-red-400 text-sm hover:underline"
+        >
           Logout
         </button>
       </div>
@@ -885,14 +1077,14 @@ Buka browser ke URL yang ditampilkan (default `http://localhost:5173`).
 
 # BAGIAN 3 — Troubleshooting Umum
 
-| Masalah | Penyebab | Solusi |
-|---|---|---|
-| `BadMethodCallException` saat `createToken()` | Trait `HasApiTokens` belum ditambahkan di `User.php` | Tambahkan `use HasApiTokens, HasFactory, Notifiable;` |
-| `SQLSTATE... no such table: kontak` | Migration belum dijalankan | `php artisan migrate` atau `php artisan migrate:fresh` |
-| `401 Unauthorized` di route terproteksi | Header `Authorization: Bearer <token>` tidak dikirim / token salah | Pastikan frontend menyimpan & mengirim token dari hasil login |
-| Request dari React diblokir browser (CORS error) | Origin frontend tidak diizinkan backend | Set `allowed_origins` di `config/cors.php` sesuai URL dev server React |
-| `422 Unprocessable Entity` | Validasi `$request->validate()` gagal | Cek field wajib (`nama`, `alamat`, `tanggal_lahir`, dst.) sesuai body request |
-| Data `phones` kosong saat GET kontak | Query tidak eager-load relasi | Pastikan controller memakai `Contact::with('phones')` |
+| Masalah                                          | Penyebab                                                           | Solusi                                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `BadMethodCallException` saat `createToken()`    | Trait `HasApiTokens` belum ditambahkan di `User.php`               | Tambahkan `use HasApiTokens, HasFactory, Notifiable;`                         |
+| `SQLSTATE... no such table: kontak`              | Migration belum dijalankan                                         | `php artisan migrate` atau `php artisan migrate:fresh`                        |
+| `401 Unauthorized` di route terproteksi          | Header `Authorization: Bearer <token>` tidak dikirim / token salah | Pastikan frontend menyimpan & mengirim token dari hasil login                 |
+| Request dari React diblokir browser (CORS error) | Origin frontend tidak diizinkan backend                            | Set `allowed_origins` di `config/cors.php` sesuai URL dev server React        |
+| `422 Unprocessable Entity`                       | Validasi `$request->validate()` gagal                              | Cek field wajib (`nama`, `alamat`, `tanggal_lahir`, dst.) sesuai body request |
+| Data `phones` kosong saat GET kontak             | Query tidak eager-load relasi                                      | Pastikan controller memakai `Contact::with('phones')`                         |
 
 ---
 
